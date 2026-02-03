@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">
+  <defs>
+    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="70%" style="stop-color:#10b981"/>
+      <stop offset="85%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#ef4444"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="50" cy="50" r="45" fill="#0f0f0f"/>
+  
+  <!-- Gauge track (gray background) -->
+  <circle cx="50" cy="50" r="35" fill="none" 
+          stroke="#374151" stroke-width="8"
+          stroke-dasharray="165 55"
+          transform="rotate(135 50 50)"/>
+  
+  <!-- Gauge fill (gradient showing budget usage) -->
+  <circle cx="50" cy="50" r="35" fill="none" 
+          stroke="url(#gaugeGrad)" stroke-width="8"
+          stroke-dasharray="110 110"
+          stroke-linecap="round"
+          transform="rotate(135 50 50)"/>
+  
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="6" fill="#10b981"/>
+  
+  <!-- Needle -->
+  <line x1="50" y1="50" x2="50" y2="25" 
+        stroke="#ffffff" stroke-width="3" stroke-linecap="round"
+        transform="rotate(45 50 50)"/>
+  
+  <!-- Dollar sign in center -->
+  <text x="50" y="70" text-anchor="middle" 
+        font-family="system-ui" font-size="14" font-weight="bold" fill="#6b7280">$</text>
+</svg>

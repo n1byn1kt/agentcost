@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentCost — Know what you're spending on AI</title>
+  <meta name="description" content="Privacy-first AI cost tracking proxy. Set budgets, track spend, never get surprised. All data stays on your machine.">
+  <meta property="og:title" content="AgentCost — Know what you're spending on AI">
+  <meta property="og:description" content="Privacy-first AI cost tracking. Set budgets, track spend, never get surprised.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://agentcost.io">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #0f0f0f;
+      --bg-tertiary: #141414;
+      --bg-card: #1a1a1a;
+      --border: #262626;
+      --border-subtle: #1f1f1f;
+      --text-primary: #fafafa;
+      --text-secondary: #a3a3a3;
+      --text-muted: #525252;
+      --accent-green: #10b981;
+      --accent-green-dim: #059669;
+      --accent-yellow: #f59e0b;
+      --accent-red: #ef4444;
+      --font-display: 'Outfit', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Grid background */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(var(--border-subtle) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 30%, transparent 70%);
+      opacity: 0.4;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      background: linear-gradient(to bottom, var(--bg-primary), transparent);
+      backdrop-filter: blur(8px);
+    }
+
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-link svg {
+      width: 36px;
+      height: 36px;
+    }
+
+    .logo-text {
+      font-weight: 600;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--accent-green);
+      color: #000 !important;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #0d9668;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--text-muted);
+    }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px 6px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .hero-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hero-logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 40px;
+      animation: fadeInUp 0.6s ease-out 0.1s both;
+      filter: drop-shadow(0 0 60px rgba(16, 185, 129, 0.3));
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      animation: fadeInUp 0.6s ease-out 0.2s both;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-yellow) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin-bottom: 48px;
+      animation: fadeInUp 0.6s ease-out 0.3s both;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeInUp 0.6s ease-out 0.4s both;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Terminal demo */
+    .terminal-preview {
+      margin-top: 80px;
+      width: 100%;
+      max-width: 700px;
+      animation: fadeInUp 0.8s ease-out 0.5s both;
+    }
+
+    .terminal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 20px 70px -20px rgba(0,0,0,0.5),
+        0 0 100px -50px rgba(16, 185, 129, 0.2);
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .terminal-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.8;
+    }
+
+    .terminal-line {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .terminal-prompt {
+      color: var(--accent-green);
+      margin-right: 8px;
+    }
+
+    .terminal-cmd {
+      color: var(--text-primary);
+    }
+
+    .terminal-output {
+      color: var(--text-secondary);
+      padding-left: 0;
+      margin-top: 8px;
+    }
+
+    .terminal-output .cost {
+      color: var(--accent-green);
+      font-weight: 500;
+    }
+
+    .terminal-output .warn {
+      color: var(--accent-yellow);
+    }
+
+    /* Features */
+    .features {
+      padding: 120px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-green);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--text-muted);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -20px rgba(0,0,0,0.4);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    /* How it works */
+    .how-it-works {
+      padding: 120px 0;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 48px;
+      margin-top: 64px;
+    }
+
+    .step {
+      position: relative;
+    }
+
+    .step-number {
+      font-family: var(--font-mono);
+      font-size: 4rem;
+      font-weight: 700;
+      color: var(--bg-tertiary);
+      line-height: 1;
+      margin-bottom: -20px;
+      position: relative;
+      z-index: 0;
+    }
+
+    .step-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .step h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      color: var(--text-secondary);
+    }
+
+    .step code {
+      display: block;
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent-green);
+      overflow-x: auto;
+    }
+
+    /* CTA */
+    .cta {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .cta-box {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 64px 48px;
+      background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+    }
+
+    .cta h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .cta p {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Footer */
+    footer {
+      padding: 48px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    footer .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .footer-left .logo-link svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .footer-copy {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        padding: 100px 24px 60px;
+      }
+
+      .hero-logo {
+        width: 80px;
+        height: 80px;
+      }
+
+      .terminal-preview {
+        margin-top: 48px;
+      }
+
+      .features, .how-it-works, .cta {
+        padding: 80px 0;
+      }
+
+      .cta-box {
+        padding: 48px 24px;
+      }
+
+      footer .container {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .footer-left {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <nav>
+    <div class="container">
+      <a href="/" class="logo-link">
+        <svg viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#10b981"/>
+              <stop offset="60%" stop-color="#10b981"/>
+              <stop offset="80%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="48" fill="#0f0f0f"/>
+          <circle cx="50" cy="50" r="34" fill="none" stroke="#1f2937" stroke-width="10" stroke-dasharray="160 54" stroke-linecap="round" transform="rotate(135 50 50)"/>
+          <circle cx="50" cy="50" r="34" fill="none" stroke="url(#g)" stroke-width="10" stroke-dasharray="128 86" stroke-linecap="round" transform="rotate(135 50 50)"/>
+          <circle cx="50" cy="50" r="5" fill="#10b981"/>
+          <g transform="rotate(60 50 50)"><line x1="50" y1="50" x2="50" y2="22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+        </svg>
+        <span class="logo-text">AgentCost</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="https://github.com/n1byn1kt/agentcost" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        v1.5 — Budget API now available
+      </div>
+      
+      <svg class="hero-logo" viewBox="0 0 100 100">
+        <defs>
+          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="60%" stop-color="#10b981"/>
+            <stop offset="80%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#ef4444"/>
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="48" fill="#0f0f0f"/>
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#1f2937" stroke-width="2"/>
+        <circle cx="50" cy="50" r="34" fill="none" stroke="#1f2937" stroke-width="10" stroke-dasharray="160 54" stroke-linecap="round" transform="rotate(135 50 50)"/>
+        <circle cx="50" cy="50" r="34" fill="none" stroke="url(#gaugeGradient)" stroke-width="10" stroke-dasharray="128 86" stroke-linecap="round" transform="rotate(135 50 50)"/>
+        <circle cx="50" cy="50" r="8" fill="#1f2937"/>
+        <circle cx="50" cy="50" r="5" fill="#10b981"/>
+        <g transform="rotate(60 50 50)">
+          <line x1="50" y1="50" x2="50" y2="22" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="50" cy="22" r="2" fill="#ffffff"/>
+        </g>
+        <g stroke="#374151" stroke-width="2" stroke-linecap="round">
+          <line x1="50" y1="10" x2="50" y2="14" transform="rotate(-45 50 50)"/>
+          <line x1="50" y1="10" x2="50" y2="14" transform="rotate(0 50 50)"/>
+          <line x1="50" y1="10" x2="50" y2="14" transform="rotate(45 50 50)"/>
+          <line x1="50" y1="10" x2="50" y2="14" transform="rotate(90 50 50)"/>
+        </g>
+      </svg>
+
+      <h1>Know what you're<br><span class="gradient">spending on AI</span></h1>
+      <p class="hero-sub">Privacy-first cost tracking proxy for AI APIs. Set budgets, track spend across models, never get surprised. All data stays on your machine.</p>
+      
+      <div class="hero-cta">
+        <a href="https://github.com/n1byn1kt/agentcost" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="#how-it-works" class="btn btn-secondary">See how it works</a>
+      </div>
+
+      <div class="terminal-preview">
+        <div class="terminal">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">agentcost status</span>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line">
+              <span class="terminal-prompt">$</span>
+              <span class="terminal-cmd">agentcost status</span>
+            </div>
+            <div class="terminal-output">
+              Budget: <span class="cost">$4.23</span> / $10.00 (daily)<br>
+              Requests today: 47<br>
+              Top model: claude-sonnet-4 (<span class="cost">$3.81</span>)<br>
+              Status: <span class="cost">● healthy</span> — <span class="warn">42% of daily limit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-label">Features</span>
+          <h2 class="section-title">Everything you need to control AI spend</h2>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Privacy-first</h3>
+            <p>Runs entirely on your machine. No cloud, no telemetry, no tracking. Your prompts and costs stay yours.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Multi-provider tracking</h3>
+            <p>One proxy for OpenAI, Anthropic, and more. Unified cost tracking across all your AI usage.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Budget API</h3>
+            <p>Pre-flight checks, soft/hard limits, model suggestions. Let your agents self-regulate their spend.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Per-request costs</h3>
+            <p>Know exactly what each API call costs. Track by model, by day, by whatever you need.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🚦</div>
+            <h3>Hard limits</h3>
+            <p>Set daily or monthly limits. When you hit them, requests stop. No surprises on your bill.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🔧</div>
+            <h3>Drop-in proxy</h3>
+            <p>Point your SDK at localhost:8787. No code changes needed. Works with any OpenAI-compatible client.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-label">How it works</span>
+          <h2 class="section-title">Up and running in 60 seconds</h2>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">01</div>
+            <div class="step-content">
+              <h3>Clone & install</h3>
+              <p>Clone the repo and install globally.</p>
+              <code>git clone https://github.com/n1byn1kt/agentcost<br>cd agentcost && npm install && npm install -g .</code>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">02</div>
+            <div class="step-content">
+              <h3>Start the proxy</h3>
+              <p>Run the agent. It starts a local proxy on port 8787.</p>
+              <code>agentcost agent</code>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">03</div>
+            <div class="step-content">
+              <h3>Point your apps</h3>
+              <p>Set your base URL to localhost:8787. That's it.</p>
+              <code>export OPENAI_BASE_URL=http://localhost:8787/openai</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="container">
+        <div class="cta-box">
+          <h2>Take control of your AI spend</h2>
+          <p>Open source, self-hosted, and built for developers who want visibility into every API call.</p>
+          <div class="cta-buttons">
+            <a href="https://github.com/n1byn1kt/agentcost" class="btn btn-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              Get started
+            </a>
+            <a href="https://github.com/n1byn1kt/agentcost/blob/main/README.md" class="btn btn-secondary">Read the docs</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-left">
+        <a href="/" class="logo-link">
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="fg" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="60%" stop-color="#10b981"/>
+                <stop offset="80%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="48" fill="#0f0f0f"/>
+            <circle cx="50" cy="50" r="34" fill="none" stroke="url(#fg)" stroke-width="10" stroke-dasharray="128 86" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle cx="50" cy="50" r="5" fill="#10b981"/>
+          </svg>
+        </a>
+        <span class="footer-copy">© 2026 AgentCost. Open source under MIT.</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/n1byn1kt/agentcost">GitHub</a>
+        <a href="https://github.com/n1byn1kt/agentcost/issues">Issues</a>
+        <a href="https://github.com/n1byn1kt/agentcost/blob/main/LICENSE">License</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

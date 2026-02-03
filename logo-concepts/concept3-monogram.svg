@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">
+  <!-- Background -->
+  <rect width="100" height="100" rx="20" fill="#0f0f0f"/>
+  
+  <!-- A shape with rising chart as crossbar -->
+  <path d="M 25 75 L 45 25 L 55 25 L 75 75" 
+        fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Crossbar that rises like a chart -->
+  <path d="M 32 55 L 42 50 L 52 45 L 68 35" 
+        fill="none" stroke="#10b981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Small dot at chart peak -->
+  <circle cx="68" cy="35" r="4" fill="#10b981"/>
+</svg>
