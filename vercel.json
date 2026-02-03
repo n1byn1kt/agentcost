@@ -1,9 +1,5 @@
 {
-  "buildCommand": "npm run build && cp -r landing dist/landing",
-  "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/", "destination": "/landing/index.html" },
-    { "source": "/app", "destination": "/index.html" },
-    { "source": "/app/(.*)", "destination": "/index.html" }
+    { "source": "/", "destination": "/landing/index.html" }
   ]
 }
