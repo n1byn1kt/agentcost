@@ -6,6 +6,10 @@
 
 <p align="center"><strong>Know what you're spending on AI.</strong></p>
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="AgentCost Dashboard" width="700">
+</p>
+
 Privacy-first AI cost tracking. All data stays on your machine.
 
 **Requirements:** Node.js 18+
